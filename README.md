@@ -46,10 +46,6 @@ powershell -ExecutionPolicy Bypass -File .\stop.ps1
 
 Повторный запуск: `powershell -ExecutionPolicy Bypass -File .\start.ps1`.
 
-## macOS и Linux
-
-Установите и запустите Docker с поддержкой `docker compose`. После этого в корне проекта выполните `./start.sh`. Скрипт создаст `.env` (требуется `openssl`) и запустит контейнеры. Для остановки выполните `docker compose down`.
-
 ## Где лежат файлы
 
 ```text
@@ -89,18 +85,6 @@ mediawall/
 Dockerfile backend автоматически скачивает стандартный каркас Laravel 12, устанавливает только зависимости для запуска и добавляет исходники проекта. Сам каркас Laravel не дублируется в репозитории. Сборка backend без доступа к Composer/Packagist и frontend без доступа к npm не сработает на первом запуске. После первой сборки код галереи берётся из этого репозитория.
 
 
-## Ошибка сборки Composer
-
-Если `START.cmd` заканчивается сообщением `Docker image build failed`, в PowerShell из корня проекта выполните:
-
-```powershell
-docker compose --progress plain build --no-cache backend *> backend-build.log
-```
-
-Откройте `backend-build.log`: реальная причина содержится в первой ошибке Composer выше строки `failed to solve` (например, ошибка сети, недоступность Packagist или несовместимость пакета). `docker compose logs` показывает журналы уже запущенных контейнеров, но не объясняет ошибку на этапе сборки образа. Можно отправить лог разработчику, предварительно убедившись, что он не содержит паролей или токенов.
-
-Чтобы обновить прежнюю версию проекта, распакуйте новый архив поверх существующей папки, согласившись на замену файлов. Не удаляйте `.env` и не запускайте `docker compose down -v`: это удалит данные PostgreSQL и загруженные файлы. Затем повторно запустите `START.cmd`.
-
 ## API
 
 | Метод | URL | Описание |
@@ -110,69 +94,3 @@ docker compose --progress plain build --no-cache backend *> backend-build.log
 
 Форматы: JPG, PNG, GIF, WEBP, MP4, WEBM. Максимальный размер одного файла — 20 МиБ. Для POST установлен лимит 10 запросов в минуту на клиента.
 
-## Работа команды
-
-Все изменения frontend в `frontend/app` и конфигурации Next.js применяются в dev-сервере автоматически. Изменения PHP-контроллера и `routes/api.php` доступны в контейнере через файловые подключения. После изменения миграции или backend Dockerfile следует перезапустить backend:
-
-```powershell
-docker compose up --build -d backend
-```
-
-После изменения `frontend/package.json` пересоберите frontend и обновите том зависимостей:
-
-```powershell
-docker compose build frontend
-docker compose stop frontend
-docker compose rm -f frontend
-docker volume rm mediawall_frontend_node_modules
-docker compose up -d frontend
-```
-
-Если том отсутствует, команда `docker volume rm` сообщит об этом; можно продолжать.
-
-Просмотр логов:
-
-```powershell
-docker compose logs -f --tail=100
-```
-
-Подключиться к PostgreSQL:
-
-```powershell
-docker compose exec db psql -U mediawall -d mediawall
-```
-
-Проверить API:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/api/media
-```
-
-База данных и медиа хранятся в отдельных Docker-томах и сохраняются после `docker compose down`. Команда `docker compose down -v` **удалит** базу и загруженные файлы. Не применяйте её без необходимости.
-
-## GitHub
-
-Создайте пустой репозиторий `mediawall`, затем в корне проекта выполните:
-
-```powershell
-git init
-git add .
-git commit -m "MediaWall MVP"
-git branch -M main
-git remote add origin https://github.com/ВАШ-АККАУНТ/mediawall.git
-git push -u origin main
-```
-
-Замените адрес на URL созданного репозитория. При работе в команде приглашайте сокомандников в настройках репозитория или работайте через ветки и pull request. Файл `.env`, пароли, зависимости и загруженные медиа не включаются в Git.
-
-## Figma
-
-Откройте Figma и перетащите файлы `design/desktop.svg`, `design/mobile.svg` и `design/upload-dialog.svg` на холст. Это стартовые редактируемые макеты в SVG, а не готовый облачный документ `.fig`. После импорта создайте командный Figma-проект, настройте размеры фреймов и поделитесь ссылкой с командой.
-
-Ссылка на Figma: добавьте после импорта.
-
-## Ограничения учебной версии
-
-Каждый, кто запускает проект на своём компьютере, получает **собственную** локальную галерею и базу данных. Чтобы одни и те же публикации видели все участники команды с разных компьютеров, разверните один экземпляр проекта на общем сервере. Docker Desktop на локальном компьютере сам по себе не публикует сайт в интернете.
-
-Сервис предназначен для локальной разработки: у него нет авторизации, модерации, антивирусной проверки, HTTPS и промышленной защиты от злоупотреблений. Не выставляйте его в публичный интернет без дополнительной настройки и ограничений. Полезно использовать тестовые изображения и видео, не содержащие персональных данных.
